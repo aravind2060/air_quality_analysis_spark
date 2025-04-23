@@ -9,8 +9,8 @@ TCP_HOST = 'localhost'  # The host to bind the server
 TCP_PORT = 9999  # The port on which to listen for incoming connections
 
 # Folder Paths
-LOG_FOLDER_PATH = '/workspaces/air_quality_analysis_spark/ingestion/data/pending'  # Path to the folder containing log files
-PROCESSED_FOLDER_PATH = os.path.join('/workspaces/air_quality_analysis_spark/ingestion/data/', 'processed')  # Subfolder where processed logs will be moved
+LOG_FOLDER_PATH = '/opt/bitnami/spark/Air/data'  # Path to the folder containing log files
+PROCESSED_FOLDER_PATH = '/opt/bitnami/spark/Air/processed'  # Subfolder where processed logs will be moved
 
 
 def create_tcp_server():
@@ -93,9 +93,9 @@ def process_log_file(file_path, client_socket):
         return
 
     # Move the processed file to the 'processed' folder
-    dest_path = os.path.join(PROCESSED_FOLDER_PATH, filename)  # Destination path for the processed file
-    shutil.move(file_path, dest_path)  # Move the file to the 'processed' folder
-    print(f"Moved {filename} to 'processed/'")  # Log confirmation that the file has been moved
+    #dest_path = os.path.join(PROCESSED_FOLDER_PATH, filename)  # Destination path for the processed file
+    #shutil.move(file_path, dest_path)  # Move the file to the 'processed' folder
+    #print(f"Moved {filename} to 'processed/'")  # Log confirmation that the file has been moved
 
 
 def accept_client_connections(server_socket):
