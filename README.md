@@ -272,11 +272,6 @@ This feature-enhanced dataset is now fully ready for:
       ⬇  
   [Final Feature-Enhanced Dataset]  
 
----
-
 # ✅ Quick Run Instruction  
 Once Section 1 files are ready, run:  
-
-  spark-submit section2_transformations.py  
-
-✅ All intermediate outputs will be automatically saved.  
+  spark-submit Section2/data_agg_transf_trend_analysis.py 
