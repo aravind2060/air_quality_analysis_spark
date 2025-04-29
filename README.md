@@ -286,4 +286,95 @@ This feature-enhanced dataset is now fully ready for:
 Once Section 1 files are ready, run:  
  spark-submit Section2/data_agg_transf_trend_analysis.py
 
-# Section 3
+# Section 3: Spark SQL Exploration & AQI Classification
+
+📚 **Overview**  
+In this section, we perform advanced SQL-based exploration, temporal trend analysis, and Air Quality Index (AQI) classification using the feature-enhanced dataset from Section 2.
+
+---
+
+## 🛠 Workflow Summary
+
+| Step | Task                                     | Description                                                                      |
+| :--- | :--------------------------------------- | :------------------------------------------------------------------------------- |
+| 1    | Register DataFrame as SQL Temporary View | Enable SQL querying on feature-enhanced data.                                    |
+| 2    | Top 5 Polluted Regions                   | Identify regions with the highest average PM2.5 concentrations.                  |
+| 3    | Peak Pollution Hours                     | Find the hours of the day when PM2.5 levels are highest.                         |
+| 4    | Trend Analysis                           | Use SQL Window Functions to track PM2.5 changes over time.                       |
+| 5    | AQI Classification                       | Categorize air quality into Good, Moderate, or Unhealthy using PM2.5 thresholds. |
+| 6    | Save Outputs                             | Persist the AQI-classified data to CSV and Parquet formats.                      |
+
+---
+
+## 📂 Output Structure
+
+output/ └── Section3_Output/ ├── section3_aqi_classified_csv/ # AQI-classified data in CSV └── section3_aqi_classified_parquet/ # AQI-classified data in Parquet
+
+Each output contains the AQI Category column added to the original data.
+
+---
+
+## 🔥 Key Features Implemented
+
+| Feature            | Details                                                             |
+| :----------------- | :------------------------------------------------------------------ |
+| SQL-Based Analysis | Complex Spark SQL queries for temporal and spatial pollution trends |
+| Window Functions   | Track PM2.5 rate of change over time using LAG()                    |
+| Custom UDF         | Classify air quality levels based on PM2.5 concentrations           |
+| Structured Output  | Save results to CSV and Parquet formats for flexible downstream use |
+
+---
+
+## 🧪 Important Queries & Functions
+
+- **Top Regions:**
+
+```sql
+SELECT location_id, AVG(pm25) AS avg_pm25
+FROM air_quality_data
+GROUP BY location_id
+ORDER BY avg_pm25 DESC
+LIMIT 5
+Peak Pollution Hours:
+
+
+SELECT hour(event_time) AS pollution_hour, AVG(pm25) AS avg_pm25
+FROM air_quality_data
+GROUP BY pollution_hour
+ORDER BY avg_pm25 DESC
+LIMIT 5
+Trend Detection (Window Function):
+
+
+Window.partitionBy("location_id").orderBy("event_time")
+AQI Classification UDF Logic:
+
+if pm25 <= 50:
+    return "Good"
+elif pm25 <= 100:
+    return "Moderate"
+else:
+    return "Unhealthy"
+🏁 Final Outcome
+By the end of Section 3:
+
+You have deep insights into where, when, and how air quality worsens.
+
+A new AQI-classified dataset is created.
+
+Structured outputs ready for visualization, dashboards, or ML models.
+
+✅ Quick Run Instruction
+After generating Section 2 outputs, run:
+
+
+spark-submit Section3/Section3_sql_exploration_and_aqi_classification.py
+Outputs will be saved automatically in output/Section3_Output/.
+
+📢 Notes
+AQI classification is simplified based on PM2.5 for ease of interpretation.
+
+Outputs are saved both in human-readable CSV and optimized Parquet formats.
+
+This step prepares the dataset for downstream tasks like dashboard visualization or alerts.
+```
