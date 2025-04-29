@@ -378,3 +378,182 @@ Outputs are saved both in human-readable CSV and optimized Parquet formats.
 
 This step prepares the dataset for downstream tasks like dashboard visualization or alerts.
 ```
+
+#  Section 4: PM2.5 Prediction Using Spark MLlib
+
+
+
+---
+
+## ✅ Objectives
+
+- Select predictive features from enhanced historical air quality data.
+- Train and evaluate regression models (Random Forest) to predict PM2.5.
+- Optimize model performance using cross-validation.
+- Propose and prototype real-time model deployment in a streaming data pipeline.
+
+---
+
+## 📂 Input
+
+- `output/section2_step5_feature_enhanced_csv/*.csv`:  
+  Engineered dataset containing:
+  - Lagged values
+  - Rate-of-change metrics
+  - Rolling average indicators
+
+---
+
+## 📁 Output
+
+```
+output1/
+├── train_data.csv/                     # Training features
+├── test_data.csv/                      # Testing features
+├── predictions_rf.csv/                # Predictions from initial RF model
+├── predictions_rf_optimized.csv/      # Predictions from best tuned RF model
+├── initial_rf_metrics.txt             # RMSE & R² of initial model
+├── final_rf_metrics.txt               # RMSE & R² of tuned model
+```
+
+---
+
+## Workflow Summary
+
+### 🔹 1. Load and Prepare Data
+
+- Load CSV dataset and infer schema.
+- Select features related to pollution and weather trends.
+- Fill missing values with zeroes.
+
+### 🔹 2. Feature Selection
+
+Selected predictors:
+- `temperature`, `humidity`
+- `pm25_lag1`, `temperature_lag1`, `humidity_lag1`
+- `pm25_rate_change`, `temperature_rate_change`, `humidity_rate_change`
+- `rolling_pm25_avg`
+
+Target variable:
+- `pm25`
+
+### 🔹 3. Assemble Features
+
+- Use `VectorAssembler` to convert selected predictors into a single `features` vector column.
+
+### 🔹 4. Train/Test Split
+
+- Split data into 80% training and 20% testing.
+- Save both splits as CSV for transparency and reuse.
+
+### 🔹 5. Train Model
+
+- A Random Forest Regressor (`numTrees=50`) is trained.
+- Predictions are generated and saved.
+
+### 🔹 6. Initial Evaluation
+
+- Metrics used:
+  - RMSE (Root Mean Squared Error)
+  - R² (coefficient of determination)
+
+Metrics saved to `initial_rf_metrics.txt`.
+
+### 🔹 7. Hyperparameter Tuning
+
+- Parameters tuned:
+  - `maxDepth`: [5, 10]
+  - `numTrees`: [20, 50]
+
+- Cross-validation with 3 folds is used.
+- Best model applied to test data.
+- Metrics saved to `final_rf_metrics.txt`.
+
+---
+
+## 📊 Performance Metrics
+
+| Model           | RMSE     | R² Score |
+|----------------|----------|----------|
+| Initial RF     | Logged in `initial_rf_metrics.txt` |
+| Tuned RF       | Logged in `final_rf_metrics.txt`   |
+
+---
+
+## Real-Time Prediction Integration Plan
+
+### Architecture
+
+1. **Streaming Ingestion**
+   - Use Spark Structured Streaming to consume data via TCP or Kafka.
+2. **Feature Transformation**
+   - Use stateful operations to compute:
+     - Lag features
+     - Rate-of-change
+     - Rolling averages
+3. **Model Application**
+   - Load the trained Random Forest model.
+   - Apply it to the transformed streaming data.
+4. **Output Sink**
+   - Store predictions into:
+     - Kafka
+     - CSV/Parquet
+     - PostgreSQL
+     - Visualization dashboards
+
+---
+
+## 🧪 Real-Time Prediction Pipeline Template (PySpark)
+
+```python
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import *
+from pyspark.ml.feature import VectorAssembler
+from pyspark.ml.regression import RandomForestRegressionModel
+
+# Start Spark Streaming session
+spark = SparkSession.builder.appName("RealTimePM25Prediction").getOrCreate()
+spark.sparkContext.setLogLevel("WARN")
+
+# Load trained model
+model = RandomForestRegressionModel.load("models/final_rf_model")
+
+# Define schema and read streaming input (e.g., from TCP or Kafka)
+stream_data = spark.readStream     .format("socket")     .option("host", "localhost")     .option("port", 9999)     .load()
+
+# Assume data is CSV format in text lines, parse it
+parsed = stream_data.selectExpr("split(value, ',') as fields")     .selectExpr(
+        "cast(fields[0] as double) as temperature",
+        "cast(fields[1] as double) as humidity",
+        "cast(fields[2] as double) as pm25_lag1",
+        "cast(fields[3] as double) as temperature_lag1",
+        "cast(fields[4] as double) as humidity_lag1",
+        "cast(fields[5] as double) as pm25_rate_change",
+        "cast(fields[6] as double) as temperature_rate_change",
+        "cast(fields[7] as double) as humidity_rate_change",
+        "cast(fields[8] as double) as rolling_pm25_avg"
+    )
+
+# Assemble features
+assembler = VectorAssembler(
+    inputCols=[
+        "temperature", "humidity", "pm25_lag1", "temperature_lag1", "humidity_lag1",
+        "pm25_rate_change", "temperature_rate_change", "humidity_rate_change",
+        "rolling_pm25_avg"
+    ],
+    outputCol="features"
+)
+features_df = assembler.transform(parsed)
+
+# Apply model to predict PM2.5
+predictions = model.transform(features_df)
+
+# Output prediction results to console or file
+query = predictions.select("prediction").writeStream     .outputMode("append")     .format("console")     .start()
+
+query.awaitTermination()
+```
+
+
+---
+
