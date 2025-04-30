@@ -557,3 +557,111 @@ query.awaitTermination()
 
 ---
 
+
+
+# Section 5: Real-Time Scoring & Sink to Postgres
+
+## Objective
+Apply the trained PM2.5 model in a live Spark Structured Streaming pipeline:  
+1. Ingest from TCP  
+2. Enrich features & compute AQI  
+3. Score with RandomForest model  
+4. Write predictions into Postgres
+
+## Pre-requisites
+- Section 4 has produced and saved:
+  - `models/pm25_featurizer` (the feature-engineering PipelineModel)
+  - `models/best_pm25_model` (the trained RF PipelineModel)
+- PostgreSQL running and reachable; JDBC URL in env var `AIRQ_JDBC`
+
+# 1. Start the TCP streaming simulator (from Section 1)
+python ingestion/tcp_log_file_streaming_server.py
+
+# 2. In a second shell, set your JDBC connection string
+#    (replace host, port, db, user, password as needed)
+export AIRQ_JDBC="jdbc:postgresql://localhost:5432/postgres?user=postgres&password=airq"
+
+# 3. Submit the Section 5 pipeline to Spark
+spark-submit \
+  --master local[*] \
+  Section5/pipeline_section5.py
+
+
+## Pipeline Script
+Path: `Section5/pipeline_section5.py`
+
+```python
+from pyspark.ml import PipelineModel
+from pyspark.sql.functions import current_timestamp, first
+from pyspark.ml.feature import VectorAssembler
+from pyspark.sql import SparkSession
+
+# load featurizer & RF model
+featurizer = PipelineModel.load("models/pm25_featurizer")
+rf_model    = PipelineModel.load("models/best_pm25_model")
+
+FEATURE_COLS = [
+  "temperature","humidity",
+  "pm25_lag1","temperature_lag1","humidity_lag1",
+  "pm25_rate_change","temperature_rate_change","humidity_rate_change",
+  "rolling_pm25_avg"
+]
+assembler = VectorAssembler(inputCols=FEATURE_COLS, outputCol="features")
+
+def foreach_batch(batch_df, batch_id):
+    if batch_df.rdd.isEmpty(): return
+
+    # pivot raw parameters → columns
+    pivoted = (batch_df
+      .groupBy("location_id","latitude","longitude","event_time")
+      .pivot("parameter", ["pm25","temperature","humidity"])
+      .agg(first("value"))
+    )
+
+    # feature-engineer + AQI, assemble, score, timestamp
+    feat      = featurizer.transform(pivoted)
+    scored    = (rf_model.transform(feat)
+                   .withColumn("ingest_time", current_timestamp())
+                )
+
+    # write only known columns
+    (scored.select(
+        "location_id","latitude","longitude","event_time",
+        "pm25","prediction","probability","ingest_time"
+      )
+      .write
+      .jdbc(url=jdbc_url, table="predictions", mode="append", properties=jdbc_props)
+    )
+
+# build streaming read from socket
+spark = SparkSession.builder.appName("Section5").getOrCreate()
+raw = (spark.readStream.format("socket")
+       .option("host","localhost").option("port",9999).load())
+
+# parse CSV-style text → columns
+parsed = raw.withColumn("value", regexp_replace(regexp_replace(col("value"), r"[\\[\\]]",""),"'","")) \
+            .withColumn("parts", split(col("value"),",\s*")) \
+            .select(
+               trim(col("parts")[0]).alias("location_id"),
+               to_timestamp(trim(col("parts")[3]), "yyyy-MM-dd'T'HH:mm:ssXXX").alias("event_time"),
+               col("parts")[4].cast("double").alias("latitude"),
+               col("parts")[5].cast("double").alias("longitude"),
+               trim(col("parts")[6]).alias("parameter"),
+               col("parts")[8].cast("double").alias("value")
+            )
+
+# read JDBC settings from AIRQ_JDBC env var
+raw_jdbc = os.getenv("AIRQ_JDBC")
+url, params = raw_jdbc.split("?",1)
+jdbc_props = dict(p.split("=",1) for p in params.split("&"))
+jdbc_props["driver"] = "org.postgresql.Driver"
+
+# start streaming query
+(parsed.writeStream
+       .foreachBatch(foreach_batch)
+       .trigger(processingTime="10 seconds")
+       .option("checkpointLocation","output/checkpoints/section5")
+       .outputMode("append")
+       .start()
+       .awaitTermination()
+)

@@ -1,3 +1,7 @@
+"""
+
+Muted by Eric for section 5
+
 # SECTION 4: PM2.5 Regression Using Spark MLlib
 
 from pyspark.sql import SparkSession
@@ -87,4 +91,55 @@ with open("output1/final_rf_metrics.txt", "w") as f:
 
 
 
+""" 
 
+
+
+
+
+
+import os
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+from pyspark.ml.feature import VectorAssembler
+from pyspark.ml.regression import RandomForestRegressor, RandomForestRegressionModel
+from pyspark.ml.evaluation import RegressionEvaluator
+
+MODEL_PATH = os.getenv("AQ_MODEL_PATH", "output/models/rf_model")
+
+def train_and_save_model(
+    source_csv: str = "output/section2_step5_feature_enhanced_csv/part-*.csv",
+    model_path: str = MODEL_PATH,
+):
+    spark = SparkSession.builder.appName("PM2.5 Train & Save").getOrCreate()
+    df = spark.read.csv(source_csv, header=True, inferSchema=True).na.fill(0)
+
+    features = [
+        "temperature", "humidity",
+        "pm25_lag1", "temperature_lag1", "humidity_lag1",
+        "pm25_rate_change", "temperature_rate_change", "humidity_rate_change",
+        "rolling_pm25_avg"
+    ]
+    assembler = VectorAssembler(inputCols=features, outputCol="features")
+    data = assembler.transform(df).select("features", col("pm25").alias("label"))
+
+    train, test = data.randomSplit([0.8, 0.2], seed=42)
+    rf = RandomForestRegressor(featuresCol="features", labelCol="label", numTrees=50)
+    model = rf.fit(train)
+
+    os.makedirs(os.path.dirname(model_path), exist_ok=True)
+    model.write().overwrite().save(model_path)
+
+    preds = model.transform(test)
+    rmse = RegressionEvaluator(
+        labelCol="label", predictionCol="prediction", metricName="rmse"
+    ).evaluate(preds)
+    print(f"Saved RF model to {model_path}; test RMSE={rmse:.3f}")
+    spark.stop()
+
+def load_model(model_path: str = None) -> RandomForestRegressionModel:
+    path = model_path or MODEL_PATH
+    return RandomForestRegressionModel.load(path)
+
+if __name__ == "__main__":
+    train_and_save_model()
