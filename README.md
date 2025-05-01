@@ -81,8 +81,3 @@ The project is modular and split across five sections to ensure maintainability 
 - **Output:** Risk-classified data per region and time.
 
 ---
-
- into streaming pipeline.
-- **Output:** Inferred AQI values and PM2.5 stored in PostgreSQL/Parquet.
-
----
