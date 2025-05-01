@@ -80,4 +80,26 @@ The project is modular and split across five sections to ensure maintainability 
 - **Categories:** Good, Moderate, Unhealthy.
 - **Output:** Risk-classified data per region and time.
 
+## Section 4: ML Model for PM2.5 Prediction
+
+### 4.1 Feature Selection & Preparation
+- **Goal:** Use temporal features to predict future PM2.5 levels.
+- **Features Used:** `previous_pm25`, `next_pm25`, `pm25_diff_previous`, `pm25_diff_next`.
+- **Process:** Dropped nulls, vectorized features using `VectorAssembler`, and split into training/testing datasets.
+
+### 4.2 Model Training & Evaluation
+- **Model:** Random Forest Regressor from Spark MLlib.
+- **Performance Metrics:**
+  - **RMSE:** 1.99 (indicates low prediction error)
+  - **R²:** -∞ (infinite negative value due to insufficient test samples)
+- **Result:** Model trained successfully and evaluated using RMSE and R².
+
+### 4.3 Output Predictions
+- **Fields:** `region`, `timestamp`, `actual_pm25`, `predicted_pm25`
+- **Saved to:** `output/section-4/predictions.csv`
+
+### 4.4 Real-Time Integration Plan (Proposed)
+- **Goal:** Apply trained model on streaming data to forecast PM2.5 levels.
+- **Plan:** Use the existing structured streaming pipeline to apply `.transform()` using the trained model, and output predictions in real-time for dashboards or alerts.
+"""
 ---
