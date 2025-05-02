@@ -1,0 +1,3 @@
+Random Forest Model Performance:
+RMSE: 1.45
+R²: -inf

@@ -102,4 +102,34 @@ The project is modular and split across five sections to ensure maintainability 
 - **Goal:** Apply trained model on streaming data to forecast PM2.5 levels.
 - **Plan:** Use the existing structured streaming pipeline to apply `.transform()` using the trained model, and output predictions in real-time for dashboards or alerts.
 """
+
+## Section 5: Pipeline Integration & Dashboard Visualization
+
+### 5.1 Assemble End-to-End Pipeline
+- **Goal:** Integrate Sections 1–4 into a single reproducible script.
+- **Implementation:** Built `run_full_pipeline.py` which reads raw data, applies transformations, executes SQL, runs ML predictions, and stores outputs.
+- **Output:** Clean and modular pipeline script that automates ingestion to analytics in one command.
+
+### 5.2 Visualize Data & Predictions
+- **Goal:** Create interactive dashboard using Plotly & Matplotlib.
+- **Charts Produced:**
+  - **Time-Series Line Chart:** Overlaid actual vs. predicted PM2.5 levels.
+  - **Spike Events Timeline:** Scatter plot highlighting PM2.5 levels above safe threshold.
+  - **AQI Classification Breakdown:** Pie chart showing distribution across Good, Moderate, Unhealthy.
+  - **Correlation Plot:** Heatmap showing correlations between PM2.5, temperature, and humidity.
+- **Output:** All charts saved as `.html` and `.png` in `output/section-5/` for stakeholder-ready presentation.
+
+### 5.3 Store Final Outputs & Reports
+- **Goal:** Persist all outputs for monitoring and reuse.
+- **Files Stored:**
+  - `final_predictions.csv`
+  - `aqi_breakdown.csv`
+  - `model_metrics.txt`
+  - All visualizations exported to HTML/PNG formats.
+- **Format:** Stored as CSV or Parquet. PostgreSQL integration optional.
+
+### 5.4 Outcome of Section 5
+- A complete, automated, and reproducible air quality analytics system.
+- Supports real-time ingestion, trend analysis, ML forecasting, and interactive reporting.
+
 ---
