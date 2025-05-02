@@ -1,0 +1,3 @@
+region,avg_pm25,records_count,highest_aqi,aqi_rank
+RegionA,54.0,5,Unhealthy,3
+RegionB,64.0,5,Unhealthy,3
